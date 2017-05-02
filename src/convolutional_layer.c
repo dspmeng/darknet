@@ -12,6 +12,10 @@
 #include "xnor_layer.h"
 #endif
 
+const char* ACT_STRS[] = {
+    "LOGISTIC", "RELU", "RELIE", "LINEAR", "RAMP", "TANH", "PLSE", "leaky relu", "ELU", "LOGGY", "STAIR", "HARDTAN", "LHTAN"
+};
+
 void swap_binary(convolutional_layer *l)
 {
     float *swap = l->weights;
@@ -308,6 +312,13 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
     l.activation = activation;
 
     fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c);
+
+#ifdef DEBUG
+    if (batch_normalize) {
+        fprintf(stderr, "      batch norm\n");
+    }
+    fprintf(stderr, "      %s\n", ACT_STRS[activation]);
+#endif
 
     return l;
 }
