@@ -180,7 +180,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
         float prob = probs[i][class];
         if(prob > thresh){
 
-            int width = im.h * .012;
+            int width = im.h * .004;
 
             if(0){
                 width = pow(prob, 1./2.)*10+1;
@@ -214,8 +214,9 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-                image label = get_label(alphabet, names[class], (im.h*.03)/10);
+                image label = get_label(alphabet, names[class], (im.h*.01)/10);
                 draw_label(im, top + width, left, label, rgb);
+                printf("%s,%d,%d,%d,%d\n", names[class], left, top, right-left, bot-top);
             }
         }
     }
@@ -953,7 +954,9 @@ void rgb_to_hsv(image im)
                 h = 0;
             }else{
                 s = delta/max;
-                if(r == max){
+                if (delta == 0) {
+                    h = 0;
+                } else if (r == max){
                     h = (g - b) / delta;
                 } else if (g == max) {
                     h = 2 + (b - r) / delta;
