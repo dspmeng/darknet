@@ -6,12 +6,14 @@
 #include "box.h"
 #include "demo.h"
 
+#include <fenv.h>
+
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
 void train_yolo(char *cfgfile, char *weightfile)
 {
-    char *train_images = "/data/voc/train.txt";
-    char *backup_directory = "/home/pjreddie/backup/";
+    char *train_images = "../pascal_voc/train.txt";
+    char *backup_directory = "./backup/";
     srand(time(0));
     char *base = basecfg(cfgfile);
     printf("%s\n", base);
@@ -311,7 +313,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
         float *X = sized.data;
         time=clock();
         network_predict(net, X);
-        printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
+        printf("%s: Predicted with threshold %f in %f seconds.\n", input, thresh, sec(clock()-time));
         get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
@@ -339,6 +341,8 @@ void run_yolo(int argc, char **argv)
         fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);
         return;
     }
+
+    feenableexcept(FE_INVALID | FE_OVERFLOW);
 
     char *cfg = argv[3];
     char *weights = (argc > 4) ? argv[4] : 0;
