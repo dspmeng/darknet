@@ -7,6 +7,7 @@
 #include "demo.h"
 #include "option_list.h"
 #include "blas.h"
+#include <sys/stat.h>
 
 static int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90};
 
@@ -598,8 +599,31 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char *input = buff;
     int j;
     float nms=.4;
+
+    struct stat buf;
+    FILE *fp = NULL;
+    char cmdstr[256];
+    if (filename && lstat(filename, &buf) < 0) {
+        fprintf(stderr, "lstat error on %s\n", filename);
+        return;
+    }
+    if (S_ISDIR(buf.st_mode)) {
+        snprintf(cmdstr, 256, "ls -1 %s", filename);
+        fp = popen(cmdstr, "r");
+        if (fp == NULL) {
+            fprintf(stderr, "Can't open %s\n", filename);
+            return;
+        }
+        strncpy(input, filename, strlen(filename));
+    }
+
     while(1){
-        if(filename){
+        if (fp != NULL) {
+            if (fgets(input + strlen(filename), 128, fp) == NULL)
+                break;
+            // remove new line from fgets
+            input[strlen(input) - 1] = '\0';
+        } else if (filename) {
             strncpy(input, filename, 256);
         } else {
             printf("Enter Image Path: ");
@@ -648,8 +672,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         free_image(sized);
         free(boxes);
         free_ptrs((void **)probs, l.w*l.h*l.n);
-        if (filename) break;
+        if (!S_ISDIR(buf.st_mode) && filename) break;
     }
+
+    if (fp) pclose(fp);
 }
 
 void run_detector(int argc, char **argv)
