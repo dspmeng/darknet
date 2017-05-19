@@ -68,6 +68,10 @@ connected_layer make_connected_layer(int batch, int inputs, int outputs, ACTIVAT
         l.x = calloc(batch*outputs, sizeof(float));
         l.x_norm = calloc(batch*outputs, sizeof(float));
     }
+    if (batch_normalize == 2) {
+        l.biases_tmp = calloc(outputs, sizeof(float));
+        l.weights_tmp = calloc(outputs*inputs, sizeof(float));
+    }
 
 #ifdef GPU
     l.forward_gpu = forward_connected_layer_gpu;

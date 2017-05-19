@@ -43,6 +43,8 @@ void free_layer(layer l)
     if(l.variance_delta)     free(l.variance_delta);
     if(l.rolling_mean)       free(l.rolling_mean);
     if(l.rolling_variance)   free(l.rolling_variance);
+    if(l.biases_tmp)         free(l.biases_tmp);
+    if(l.weights_tmp)        free(l.weights_tmp);
     if(l.x)                  free(l.x);
     if(l.x_norm)             free(l.x_norm);
     if(l.m)                  free(l.m);

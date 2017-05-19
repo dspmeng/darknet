@@ -237,6 +237,11 @@ convolutional_layer make_convolutional_layer(int batch, int h, int w, int c, int
         l.x = calloc(l.batch*l.outputs, sizeof(float));
         l.x_norm = calloc(l.batch*l.outputs, sizeof(float));
     }
+    if (batch_normalize == 2) {
+        l.biases_tmp = calloc(n, sizeof(float));
+        l.weights_tmp = calloc(c*n*size*size, sizeof(float));
+    }
+
     if(adam){
         l.adam = 1;
         l.m = calloc(c*n*size*size, sizeof(float));

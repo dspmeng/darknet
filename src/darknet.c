@@ -386,6 +386,34 @@ void visualize(char *cfgfile, char *weightfile)
 #endif
 }
 
+void merge_batchnorm(int argc, char **argv)
+{
+    if (argc != 5) {
+        fprintf(stderr, "usage: %s %s CFG IN_WEIGHT OUT_WEIGHT\n",
+            argv[0], argv[1]);
+         return;
+    }
+
+    network net = parse_network_cfg(argv[2]);
+    load_weights(&net, argv[3]);
+
+    for (int i = 0; i < net.n; ++i) {
+        layer* l = &net.layers[i];
+        if (l->type == CONVOLUTIONAL && l->batch_normalize) {
+            l->batch_normalize = 2;
+            l->biases_tmp = calloc(l->n, sizeof(float));
+            l->weights_tmp = calloc(l->c * l->n * l->size * l->size, sizeof(float));
+        } else if (l->type == CONNECTED && l->batch_normalize) {
+            l->batch_normalize = 2;
+            l->biases_tmp = calloc(l->outputs, sizeof(float));
+            l->weights_tmp = calloc(l->outputs * l->inputs, sizeof(float));
+        }
+    }
+    save_weights(net, argv[4]);
+
+    free_network(net);
+}
+
 int main(int argc, char **argv)
 {
     //test_resize("data/bad.jpg");
@@ -488,6 +516,8 @@ int main(int argc, char **argv)
         mkimg(argv[2], argv[3], atoi(argv[4]), atoi(argv[5]), atoi(argv[6]), argv[7]);
     } else if (0 == strcmp(argv[1], "imtest")){
         test_resize(argv[2]);
+    } else if (0 == strcmp(argv[1], "mergebn")) {
+        merge_batchnorm(argc, argv);
     } else {
         fprintf(stderr, "Not an option: %s\n", argv[1]);
     }

@@ -174,6 +174,11 @@ struct layer{
     float * rolling_mean;
     float * rolling_variance;
 
+    // temporary buffers for merging BN parameters into conv/fc
+    // weights and biases when save weights
+    float * biases_tmp;
+    float * weights_tmp;
+
     float * x;
     float * x_norm;
 
