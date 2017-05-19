@@ -828,13 +828,30 @@ void save_convolutional_weights(layer l, FILE *fp)
     }
 #endif
     int num = l.n*l.c*l.size*l.size;
-    fwrite(l.biases, sizeof(float), l.n, fp);
-    if (l.batch_normalize){
-        fwrite(l.scales, sizeof(float), l.n, fp);
-        fwrite(l.rolling_mean, sizeof(float), l.n, fp);
-        fwrite(l.rolling_variance, sizeof(float), l.n, fp);
+
+    if (l.batch_normalize == 2) {
+        float epsilon = .000001f;
+        int filter_offset = 0;
+        int filter_size = l.c * l.size * l.size;
+        for (int i = 0; i < l.n; i++) {
+            l.biases_tmp[i] = l.scales[i] / sqrtf(l.rolling_variance[i] + epsilon);
+            for (int w = 0; w < filter_size; w++) {
+                l.weights_tmp[filter_offset] = l.biases_tmp[i] * l.weights[filter_offset];
+                filter_offset++;
+            }
+            l.biases_tmp[i] = -l.rolling_mean[i] * l.biases_tmp[i] + l.biases[i];
+        }
+        fwrite(l.biases_tmp, sizeof(float), l.n, fp);
+        fwrite(l.weights_tmp, sizeof(float), num, fp);
+    } else {
+        fwrite(l.biases, sizeof(float), l.n, fp);
+        if (l.batch_normalize == 1){
+            fwrite(l.scales, sizeof(float), l.n, fp);
+            fwrite(l.rolling_mean, sizeof(float), l.n, fp);
+            fwrite(l.rolling_variance, sizeof(float), l.n, fp);
+        }
+        fwrite(l.weights, sizeof(float), num, fp);
     }
-    fwrite(l.weights, sizeof(float), num, fp);
     if(l.adam){
         //fwrite(l.m, sizeof(float), num, fp);
         //fwrite(l.v, sizeof(float), num, fp);
@@ -860,6 +877,21 @@ void save_connected_weights(layer l, FILE *fp)
         pull_connected_layer(l);
     }
 #endif
+    if (l.batch_normalize == 2) {
+        float epsilon = .000001f;
+        int offset = 0;
+        for (int i = 0; i < l.outputs; i++) {
+            l.biases_tmp[i] = l.scales[i] / sqrtf(l.rolling_variance[i] + epsilon);
+            for (int w = 0; w < l.inputs; w++) {
+                l.weights_tmp[offset] = l.biases_tmp[i] * l.weights[offset];
+                offset++;
+            }
+            l.biases_tmp[i] = -l.rolling_mean[i] * l.biases_tmp[i] + l.biases[i];
+        }
+        fwrite(l.biases_tmp, sizeof(float), l.outputs, fp);
+        fwrite(l.weights_tmp, sizeof(float), l.outputs * l.inputs, fp);
+        return;
+    }
     fwrite(l.biases, sizeof(float), l.outputs, fp);
     fwrite(l.weights, sizeof(float), l.outputs*l.inputs, fp);
     if (l.batch_normalize){
