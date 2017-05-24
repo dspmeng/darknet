@@ -1,0 +1,7 @@
+classes= 4
+train  = /home/jiajie/dss_dl/data/DETRAC_Data/train.txt
+valid  = /home/jiajie/dss_dl/data/DETRAC_Data/valid.txt
+names = /home/jiajie/dss_dl/data/DETRAC_Data/class_names.txt
+backup = DETRAC_weights
+
+
