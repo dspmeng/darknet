@@ -5,20 +5,13 @@
 #include "parser.h"
 #include "box.h"
 #include "demo.h"
+#include <dirent.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 //char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
-
-char *voc_names[] ={
-    "minibus",
-    "minitruck",
-    "car",
-    "mediumbus",
-    "mpv",
-    "suv",
-    "largetruck",
-    "largebus",
-    "other"
-};
+char *voc_names[] = {"minibus", "minitruck", "car", "mediumbus", "mpv", "suv", "largetruck", "largebus", "other"};
 
 
 void train_yolo(char *cfgfile, char *weightfile)
@@ -342,12 +335,76 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
     }
 }
 
+
+int is_regular_file(const char *path);
+
+void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir, float thresh)
+{
+    image **alphabet = load_alphabet();
+    network net = parse_network_cfg(cfgfile);
+    if(weightfile){
+        load_weights(&net, weightfile);
+    }
+    detection_layer l = net.layers[net.n-1];
+    set_batch_network(&net, 1);
+    srand(2222222);
+    clock_t time;
+    char buff[2048];
+    char *input = buff;
+    int j;
+    float nms=.4;
+    box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
+    float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
+    for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
+
+    DIR * dir;
+    struct dirent *ent;
+    dir = opendir(indir);
+    if (dir == NULL) return;
+    char fullPath[2048];
+    char savingName[2048];
+
+    while((ent = readdir(dir)) != NULL){
+        const char *  entry = ent->d_name;
+        strcpy(fullPath, indir);
+        strcat(fullPath, entry);
+
+        if(is_regular_file(fullPath)){
+            strncpy(input, fullPath, 2048);
+        } else {
+            continue;
+        }
+
+        image im = load_image_color(input,0,0);
+        image sized = resize_image(im, net.w, net.h);
+        float *X = sized.data;
+        time=clock();
+        network_predict(net, X);
+        printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
+        get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
+        if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
+        //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+        draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+
+        //save image
+        strcpy(savingName, outdir);
+        strcat(savingName, entry);
+        save_image(im, savingName);
+
+        free_image(im);
+        free_image(sized);
+    }
+}
+
+
 void run_yolo(int argc, char **argv)
 {
     char *prefix = find_char_arg(argc, argv, "-prefix", 0);
     float thresh = find_float_arg(argc, argv, "-thresh", .2);
     int cam_index = find_int_arg(argc, argv, "-c", 0);
     int frame_skip = find_int_arg(argc, argv, "-s", 0);
+    char *out_dir = find_char_arg(argc, argv, "-out", 0);
+
     if(argc < 4){
         fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);
         return;
@@ -357,7 +414,9 @@ void run_yolo(int argc, char **argv)
     char *cfg = argv[3];
     char *weights = (argc > 4) ? argv[4] : 0;
     char *filename = (argc > 5) ? argv[5]: 0;
+
     if(0==strcmp(argv[2], "test")) test_yolo(cfg, weights, filename, thresh);
+    else if(0==strcmp(argv[2], "test_dir")) test_yolo_dir(cfg, weights, filename, out_dir, thresh);
     else if(0==strcmp(argv[2], "train")) train_yolo(cfg, weights);
     else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights);
     else if(0==strcmp(argv[2], "recall")) validate_yolo_recall(cfg, weights);
