@@ -1099,6 +1099,9 @@ void load_weights_upto(network *net, char *filename, int start, int cutoff)
     fflush(stdout);
     FILE *fp = fopen(filename, "rb");
     if(!fp) file_error(filename);
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
     int major;
     int minor;
@@ -1107,12 +1110,16 @@ void load_weights_upto(network *net, char *filename, int start, int cutoff)
     fread(&minor, sizeof(int), 1, fp);
     fread(&revision, sizeof(int), 1, fp);
     fread(net->seen, sizeof(int), 1, fp);
+    fprintf(stderr, "%d.%d.%d\n", major, minor, revision);
     int transpose = (major > 1000) || (minor > 1000);
 
     int i;
     for(i = start; i < net->n && i < cutoff; ++i){
         layer l = net->layers[i];
         if (l.dontload) continue;
+        if (ftell(fp) >= file_size) {
+            fprintf(stderr, "reach end of weights while loading layer %d\n", i);
+        }
         if(l.type == CONVOLUTIONAL || l.type == DECONVOLUTIONAL){
             load_convolutional_weights(l, fp);
         }
