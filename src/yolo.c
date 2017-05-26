@@ -10,10 +10,11 @@
 
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
-void train_yolo(char *cfgfile, char *weightfile)
+void train_yolo(char *cfgfile, char *weightfile, char *backup)
 {
     char *train_images = "../pascal_voc/train.txt";
-    char *backup_directory = "./backup/";
+    char *backup_directory = "./backup-v1-tiny-yolo/";
+    if (backup) backup_directory = backup;
     srand(time(0));
     char *base = basecfg(cfgfile);
     printf("%s\n", base);
@@ -106,7 +107,7 @@ void print_yolo_detections(FILE **fps, char *id, box *boxes, float **probs, int 
     }
 }
 
-void validate_yolo(char *cfgfile, char *weightfile)
+void validate_yolo(char *cfgfile, char *weightfile, char *results)
 {
     network net = parse_network_cfg(cfgfile);
     if(weightfile){
@@ -116,9 +117,14 @@ void validate_yolo(char *cfgfile, char *weightfile)
     fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
     srand(time(0));
 
-    char *base = "results/comp4_det_test_";
+    char base[1024];
+    if (results) {
+        snprintf(base, 1024, "%s/comp4_det_test_", results);
+    } else {
+        snprintf(base, 1024, "%s/comp4_det_test_", "results");
+    }
     //list *plist = get_paths("data/voc.2007.test");
-    list *plist = get_paths("/home/pjreddie/data/voc/2007_test.txt");
+    list *plist = get_paths("../pascal_voc/2007_test.txt");
     //list *plist = get_paths("data/voc.2012.test");
     char **paths = (char **)list_to_array(plist);
 
@@ -337,6 +343,9 @@ void run_yolo(int argc, char **argv)
     float thresh = find_float_arg(argc, argv, "-thresh", .2);
     int cam_index = find_int_arg(argc, argv, "-c", 0);
     int frame_skip = find_int_arg(argc, argv, "-s", 0);
+    char *backup = find_char_arg(argc, argv, "-backup", 0);
+    char *results = find_char_arg(argc, argv, "-results", 0);
+
     if(argc < 4){
         fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);
         return;
@@ -348,8 +357,8 @@ void run_yolo(int argc, char **argv)
     char *weights = (argc > 4) ? argv[4] : 0;
     char *filename = (argc > 5) ? argv[5]: 0;
     if(0==strcmp(argv[2], "test")) test_yolo(cfg, weights, filename, thresh);
-    else if(0==strcmp(argv[2], "train")) train_yolo(cfg, weights);
-    else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights);
+    else if(0==strcmp(argv[2], "train")) train_yolo(cfg, weights, backup);
+    else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights, results);
     else if(0==strcmp(argv[2], "recall")) validate_yolo_recall(cfg, weights);
     else if(0==strcmp(argv[2], "demo")) demo(cfg, weights, thresh, cam_index, filename, voc_names, 20, frame_skip, prefix, .5, 0,0,0,0);
 }
