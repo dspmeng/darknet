@@ -12,7 +12,7 @@
 
 //char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 char *voc_names[] = {"minibus", "minitruck", "car", "mediumbus", "mpv", "suv", "largetruck", "largebus", "other"};
-
+int show_grid = 0;
 
 void train_yolo(char *cfgfile, char *weightfile, char *trainlist, char *backup)
 {
@@ -329,6 +329,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+        if (show_grid) draw_grid(im, l.side, l.side);
         save_image(im, "predictions");
         show_image(im, "predictions");
 
@@ -392,6 +393,7 @@ void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+        if (show_grid) draw_grid(im, l.side, l.side);
 
         //save image
         strcpy(savingName, outdir);
@@ -414,6 +416,7 @@ void run_yolo(int argc, char **argv)
     char *backup = find_char_arg(argc, argv, "-backup", 0);
     char *results = find_char_arg(argc, argv, "-results", 0);
     char *trainlist = find_char_arg(argc, argv, "-trainlist", 0);
+    show_grid = find_int_arg(argc, argv, "-showgrid", 0);
 
     if(argc < 4){
         fprintf(stderr, "usage: %s %s [train/test/valid] [cfg] [weights (optional)]\n", argv[0], argv[1]);

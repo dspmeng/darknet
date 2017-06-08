@@ -98,6 +98,19 @@ void draw_label(image a, int r, int c, image label, const float *rgb)
     }
 }
 
+void draw_grid(image a, int nx, int ny)
+{
+    int stridex = a.w / nx;
+    int stridey = a.h / ny;
+    for (int i = 0; i < nx; i++) {
+        for (int j = 0; j < ny; j++) {
+            int x = i * stridex;
+            int y = j * stridey;
+            draw_box(a, x, y, x + stridex, y + stridey, 0, 1.0, 0);
+        }
+    }
+}
+
 void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b)
 {
     //normalize_image(a);
@@ -174,6 +187,7 @@ image **load_alphabet()
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
 {
     int i;
+    char legend[32];
 
     for(i = 0; i < num; ++i){
         int class = max_index(probs[i], classes);
@@ -189,6 +203,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             //printf("%d %s: %.0f%%\n", i, names[class], prob*100);
             printf("%s: %.0f%%\n", names[class], prob*100);
+            snprintf(legend, 32, "%s %.0f%%", names[class], prob*100);
             int offset = class*123457 % classes;
             float red = get_color(2,offset,classes);
             float green = get_color(1,offset,classes);
@@ -213,8 +228,9 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             if(bot > im.h-1) bot = im.h-1;
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
+            draw_box(im, b.x*im.w-1, b.y*im.h-1, b.x*im.w+1, b.y*im.h+1, 0, 1.0, 0);
             if (alphabet) {
-                image label = get_label(alphabet, names[class], (im.h*.01)/10);
+                image label = get_label(alphabet, legend, (im.h*.01)/10);
                 draw_label(im, top + width, left, label, rgb);
                 free_image(label);
                 printf("%s,%d,%d,%d,%d\n", names[class], left, top, right-left, bot-top);
