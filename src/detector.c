@@ -675,6 +675,31 @@ int is_regular_file(const char *path)
 }
 
 
+void write_detections(FILE * fp, box * boxes, const char * image_name, int num, float thresh, float **probs, int classes, image im){
+    int i;
+
+    for(i = 0; i < num; ++i){
+        int class = max_index(probs[i], classes);
+        float prob = probs[i][class];
+        if(prob > thresh){
+            box b = boxes[i];
+
+            int left  = (b.x-b.w/2.)*im.w;
+            int right = (b.x+b.w/2.)*im.w;
+            int top   = (b.y-b.h/2.)*im.h;
+            int bot   = (b.y+b.h/2.)*im.h;
+
+            if(left < 0) left = 0;
+            if(right > im.w-1) right = im.w-1;
+            if(top < 0) top = 0;
+            if(bot > im.h-1) bot = im.h-1;
+
+            fprintf(fp, "%s %d %d %d %d\n", image_name, left, top, right, bot);
+        }
+    }
+}
+
+
 void test_detector_dir(char *datacfg, char *cfgfile, char *weightfile, char *dirname, float thresh, float hier_thresh, char * outdir)
 {
     list *options = read_data_cfg(datacfg);
@@ -700,6 +725,9 @@ void test_detector_dir(char *datacfg, char *cfgfile, char *weightfile, char *dir
     if (dir == NULL) return;
     char fullPath[2048];
     char savingName[2048];
+
+    FILE * fp = fopen("detection_results.txt", "w");
+    if( fp == NULL) return;
 
     while((ent = readdir(dir)) != NULL){
         const char *  entry = ent->d_name;
@@ -727,6 +755,7 @@ void test_detector_dir(char *datacfg, char *cfgfile, char *weightfile, char *dir
         get_region_boxes(l, im.w, im.h, net.w, net.h, thresh, probs, boxes, 0, 0, hier_thresh, 1);
         if (nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
         draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
+        write_detections(fp, boxes, entry, l.w * l.h * l.n, thresh, probs, l.classes, im);
 
         strcpy(savingName, outdir);
         strcat(savingName, entry);
@@ -737,6 +766,7 @@ void test_detector_dir(char *datacfg, char *cfgfile, char *weightfile, char *dir
         free(boxes);
         free_ptrs((void **)probs, l.w*l.h*l.n);
     }
+    fclose(fp);
 }
 
 

@@ -1386,7 +1386,7 @@ image load_image(char *filename, int w, int h, int c)
 
 image load_image_color(char *filename, int w, int h)
 {
-    return load_image(filename, w, h, 3);
+    return load_image(filename, w, h, 3);   
 }
 
 image get_image_layer(image m, int l)
