@@ -19,39 +19,42 @@ class darknet_label_parser():
         cx and w are normalized by width
         cy and h are normalized by height
         """
-        label_file = labelpath.format(imagename, 'txt')
-        with open(label_file) as f:
-            lines = f.readlines()
-        labels = [l.strip() for l in lines]
+        try:
+            label_file = labelpath.format(imagename, 'txt')
+            with open(label_file) as f:
+                lines = f.readlines()
+            labels = [l.strip() for l in lines]
 
-        # retrieve img w/h from annotation file under annotations/
-        annot_file = label_file.replace('labels', 'annotations')
-        with open(annot_file) as f:
-            annot = f.readline().strip().split(',')
-        if annot:
-            img_width, img_height = annot[-2:]
-        else:
-            raise ValueError('{} not found'.format(annot_file))
+            # retrieve img w/h from annotation file under annotations/
+            annot_file = label_file.replace('labels', 'annotations')
+            with open(annot_file) as f:
+                annot = f.readline().strip().split(',')
+            if annot:
+                img_width, img_height = annot[-2:]
+            else:
+                raise ValueError('{} not found'.format(annot_file))
 
-        objects = []
-        for obj in labels:
-            [clsid, cx, cy, w, h] = [float(i) for i in obj.split()]
-            cx *= float(img_width)
-            cy *= float(img_height)
-            w *= float(img_width)
-            h *= float(img_height)
-            obj_struct = {}
-            #""" HACK to evalute voc model on dss_barrier dataset
-            # all type as car and combine car+bus voc results
-            #clsid = 2
-            #"""
-            obj_struct['name'] = self._classes[int(clsid)]
-            obj_struct['difficult'] = 0
-            obj_struct['bbox'] = [cx-w/2, cy-h/2, cx+w/2, cy+h/2] 
-            objects.append(obj_struct)
+            objects = []
+            for obj in labels:
+                [clsid, cx, cy, w, h] = [float(i) for i in obj.split()]
+                cx *= float(img_width)
+                cy *= float(img_height)
+                w *= float(img_width)
+                h *= float(img_height)
+                obj_struct = {}
+                #""" HACK to evalute voc model on dss_barrier dataset
+                # all type as car and combine car+bus voc results
+                #clsid = 2
+                #"""
+                obj_struct['name'] = self._classes[int(clsid)]
+                obj_struct['difficult'] = 0
+                obj_struct['bbox'] = [cx-w/2, cy-h/2, cx+w/2, cy+h/2]
+                objects.append(obj_struct)
     
-        return objects
-
+            return objects
+        except IOError as e:
+            print str(e)
+            return None
 
 class voc_annot_parser():
     def parse_rec(self, annopath, imagename):
@@ -154,7 +157,9 @@ def voc_eval(detpath,
         # load annots
         recs = {}
         for i, imagename in enumerate(imagenames):
-            recs[imagename] = parser.parse_rec(annopath, imagename)
+            r = parser.parse_rec(annopath, imagename)
+            if r:
+                recs[imagename] = r
             if i % 100 == 0:
                 print 'Reading annotation for {:d}/{:d}'.format(
                     i + 1, len(imagenames))
