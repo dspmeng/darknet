@@ -397,7 +397,8 @@ void merge_batchnorm(int argc, char **argv)
     network net = parse_network_cfg(argv[2]);
     load_weights(&net, argv[3]);
 
-    for (int i = 0; i < net.n; ++i) {
+    int i;
+    for (i = 0; i < net.n; ++i) {
         layer* l = &net.layers[i];
         if (l->type == CONVOLUTIONAL && l->batch_normalize) {
             l->batch_normalize = 2;
