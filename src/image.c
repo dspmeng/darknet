@@ -102,8 +102,9 @@ void draw_grid(image a, int nx, int ny)
 {
     int stridex = a.w / nx;
     int stridey = a.h / ny;
-    for (int i = 0; i < nx; i++) {
-        for (int j = 0; j < ny; j++) {
+    int i, j;
+    for (i = 0; i < nx; i++) {
+        for (j = 0; j < ny; j++) {
             int x = i * stridex;
             int y = j * stridey;
             draw_box(a, x, y, x + stridex, y + stridey, 0, 1.0, 0);

@@ -833,9 +833,10 @@ void save_convolutional_weights(layer l, FILE *fp)
         float epsilon = .000001f;
         int filter_offset = 0;
         int filter_size = l.c * l.size * l.size;
-        for (int i = 0; i < l.n; i++) {
+        int i, w;
+        for (i = 0; i < l.n; i++) {
             l.biases_tmp[i] = l.scales[i] / sqrtf(l.rolling_variance[i] + epsilon);
-            for (int w = 0; w < filter_size; w++) {
+            for (w = 0; w < filter_size; w++) {
                 l.weights_tmp[filter_offset] = l.biases_tmp[i] * l.weights[filter_offset];
                 filter_offset++;
             }
@@ -880,9 +881,10 @@ void save_connected_weights(layer l, FILE *fp)
     if (l.batch_normalize == 2) {
         float epsilon = .000001f;
         int offset = 0;
-        for (int i = 0; i < l.outputs; i++) {
+        int i, w;
+        for (i = 0; i < l.outputs; i++) {
             l.biases_tmp[i] = l.scales[i] / sqrtf(l.rolling_variance[i] + epsilon);
-            for (int w = 0; w < l.inputs; w++) {
+            for (w = 0; w < l.inputs; w++) {
                 l.weights_tmp[offset] = l.biases_tmp[i] * l.weights[offset];
                 offset++;
             }
