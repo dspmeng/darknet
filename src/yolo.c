@@ -345,6 +345,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 
 
 int is_regular_file(const char *path);
+void write_detections(FILE * fp, box * boxes, const char * image_name, int num, float thresh, float **probs, int classes, image im);
 
 void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir, float thresh)
 {
@@ -372,6 +373,9 @@ void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir
     char fullPath[2048];
     char savingName[2048];
 
+    FILE * fp = fopen("detection_results.txt", "w");
+    if( fp == NULL) return;
+
     while((ent = readdir(dir)) != NULL){
         const char *  entry = ent->d_name;
         strcpy(fullPath, indir);
@@ -394,6 +398,7 @@ void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         if (show_grid) draw_grid(im, l.side, l.side);
+        write_detections(fp, boxes, entry, l.side * l.side * l.n, thresh, probs, l.classes, im);
 
         //save image
         strcpy(savingName, outdir);
