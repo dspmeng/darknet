@@ -126,6 +126,7 @@ struct layer{
     int onlyforward;
     int stopbackward;
     int dontload;
+    int dontsave;
     int dontloadscales;
 
     float temperature;

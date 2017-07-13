@@ -705,6 +705,7 @@ network parse_network_cfg(char *filename)
         l.onlyforward = option_find_int_quiet(options, "onlyforward", 0);
         l.stopbackward = option_find_int_quiet(options, "stopbackward", 0);
         l.dontload = option_find_int_quiet(options, "dontload", 0);
+        l.dontsave = option_find_int_quiet(options, "dontsave", 0);
         l.dontloadscales = option_find_int_quiet(options, "dontloadscales", 0);
         l.learning_rate_scale = option_find_float_quiet(options, "learning_rate", 1);
         l.smooth = option_find_float_quiet(options, "smooth", 0);
@@ -925,6 +926,7 @@ void save_weights_upto(network net, char *filename, int cutoff)
     int i;
     for(i = 0; i < net.n && i < cutoff; ++i){
         layer l = net.layers[i];
+        if (l.dontsave) continue;
         if(l.type == CONVOLUTIONAL || l.type == DECONVOLUTIONAL){
             save_convolutional_weights(l, fp);
         } if(l.type == CONNECTED){
