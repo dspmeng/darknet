@@ -195,6 +195,8 @@ convolutional_layer parse_convolutional(list *options, size_params params)
         layer.eps = params.net.eps;
     }
 
+    layer.rgb2gray = option_find_int_quiet(options, "rgb2gray", 0);
+
     return layer;
 }
 
@@ -1053,6 +1055,7 @@ void load_convolutional_weights(layer l, FILE *fp)
         //return;
     }
     int num = l.n*l.c*l.size*l.size;
+
     fread(l.biases, sizeof(float), l.n, fp);
     if (l.batch_normalize && (!l.dontloadscales)){
         fread(l.scales, sizeof(float), l.n, fp);
@@ -1074,7 +1077,15 @@ void load_convolutional_weights(layer l, FILE *fp)
             fill_cpu(l.n, 0, l.rolling_variance, 1);
         }
     }
-    fread(l.weights, sizeof(float), num, fp);
+    if (l.rgb2gray) {
+        int i;
+        assert(l.c == 1);
+        printf("Finetune gray on pretrained rgb weights\n");
+        for (i = 0; i < 3; i++)
+            fread(l.weights, sizeof(float), num, fp);
+    } else
+        fread(l.weights, sizeof(float), num, fp);
+
     if(l.adam){
         //fread(l.m, sizeof(float), num, fp);
         //fread(l.v, sizeof(float), num, fp);
@@ -1114,7 +1125,7 @@ void load_weights_upto(network *net, char *filename, int start, int cutoff)
     fread(&minor, sizeof(int), 1, fp);
     fread(&revision, sizeof(int), 1, fp);
     fread(net->seen, sizeof(int), 1, fp);
-    fprintf(stderr, "%d.%d.%d\n", major, minor, revision);
+    fprintf(stderr, "%d.%d.%d %d images\n", major, minor, revision, *net->seen);
     int transpose = (major > 1000) || (minor > 1000);
 
     int i;

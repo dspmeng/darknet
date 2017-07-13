@@ -287,6 +287,8 @@ struct layer{
     cudnnConvolutionBwdFilterAlgo_t bf_algo;
     #endif
     #endif
+
+    int rgb2gray;
 };
 
 void free_layer(layer);

@@ -511,7 +511,7 @@ void free_data(data d)
     }
 }
 
-data load_data_region(int n, char **paths, int m, int w, int h, int size, int classes, float jitter, float hue, float saturation, float exposure)
+data load_data_region(int n, char **paths, int m, int c, int w, int h, int size, int classes, float jitter, float hue, float saturation, float exposure)
 {
     char **random_paths = get_random_paths(paths, n, m);
     int i;
@@ -520,13 +520,13 @@ data load_data_region(int n, char **paths, int m, int w, int h, int size, int cl
 
     d.X.rows = n;
     d.X.vals = calloc(d.X.rows, sizeof(float*));
-    d.X.cols = h*w*3;
+    d.X.cols = h*w*c;
 
 
     int k = size*size*(5+classes);
     d.y = make_matrix(n, k);
     for(i = 0; i < n; ++i){
-        image orig = load_image_color(random_paths[i], 0, 0);
+        image orig = load_image(random_paths[i], 0, 0, c);
 
         int oh = orig.h;
         int ow = orig.w;
@@ -555,7 +555,6 @@ data load_data_region(int n, char **paths, int m, int w, int h, int size, int cl
         if(flip) flip_image(sized);
         random_distort_image(sized, hue, saturation, exposure);
         d.X.vals[i] = sized.data;
-
         fill_truth_region(random_paths[i], d.y.vals[i], classes, size, flip, dx, dy, 1./sx, 1./sy);
 
         free_image(orig);
@@ -753,7 +752,7 @@ void *load_thread(void *ptr)
     } else if (a.type == WRITING_DATA){
         *a.d = load_data_writing(a.paths, a.n, a.m, a.w, a.h, a.out_w, a.out_h);
     } else if (a.type == REGION_DATA){
-        *a.d = load_data_region(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
+        *a.d = load_data_region(a.n, a.paths, a.m, a.c, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
     } else if (a.type == DETECTION_DATA){
         *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
     } else if (a.type == SWAG_DATA){
@@ -761,7 +760,7 @@ void *load_thread(void *ptr)
     } else if (a.type == COMPARE_DATA){
         *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
     } else if (a.type == IMAGE_DATA){
-        *(a.im) = load_image_color(a.path, 0, 0);
+        *(a.im) = load_image(a.path, 0, 0, a.c);
         *(a.resized) = resize_image(*(a.im), a.w, a.h);
     } else if (a.type == LETTERBOX_DATA){
         *(a.im) = load_image_color(a.path, 0, 0);

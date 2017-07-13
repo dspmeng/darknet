@@ -38,6 +38,7 @@ typedef struct load_args{
     int n;
     int m;
     char **labels;
+    int c;
     int h;
     int w;
     int out_w;
