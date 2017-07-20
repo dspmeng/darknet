@@ -16,7 +16,7 @@ int show_grid = 0;
 
 void train_yolo(char *cfgfile, char *weightfile, char *trainlist, char *backup)
 {
-    char *train_images = "/home/jiajie/dss_dl/data/dss_barrier/train_all.txt";
+    char *train_images = "/home/jiameng/dss_barrier/train_all.txt";
     char *backup_directory = "/home/jiajie/dss_dl/iot-darknet/backup/";
     if (trainlist) train_images = trainlist;
     if (backup) backup_directory = backup;
@@ -112,7 +112,7 @@ void print_yolo_detections(FILE **fps, char *id, box *boxes, float **probs, int 
     }
 }
 
-void validate_yolo(char *cfgfile, char *weightfile, char *results)
+void validate_yolo(char *cfgfile, char *weightfile, char *testlist, char *results)
 {
     network net = parse_network_cfg(cfgfile);
     if(weightfile){
@@ -129,8 +129,9 @@ void validate_yolo(char *cfgfile, char *weightfile, char *results)
         snprintf(base, 1024, "%s/comp4_det_test_", "results");
     }
 
-    //list *plist = get_paths("data/voc.2007.test");
-    list * plist = get_paths("/home/jiajie/dss_dl/data/dss_barrier/test_all.txt");
+    char *test_images = "/home/jiameng/dss_barrier/test_all.txt";
+    if (testlist) test_images = testlist;
+    list * plist = get_paths(test_images);
     char **paths = (char **)list_to_array(plist);
 
     layer l = net.layers[net.n-1];
@@ -421,6 +422,7 @@ void run_yolo(int argc, char **argv)
     char *backup = find_char_arg(argc, argv, "-backup", 0);
     char *results = find_char_arg(argc, argv, "-results", 0);
     char *trainlist = find_char_arg(argc, argv, "-trainlist", 0);
+    char *testlist = find_char_arg(argc, argv, "-testlist", 0);
     show_grid = find_int_arg(argc, argv, "-showgrid", 0);
 
     if(argc < 4){
@@ -436,7 +438,7 @@ void run_yolo(int argc, char **argv)
     if(0==strcmp(argv[2], "test")) test_yolo(cfg, weights, filename, thresh);
     else if(0==strcmp(argv[2], "test_dir")) test_yolo_dir(cfg, weights, filename, out_dir, thresh);
     else if(0==strcmp(argv[2], "train")) train_yolo(cfg, weights, trainlist, backup);
-    else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights, results);
+    else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights, testlist, results);
     else if(0==strcmp(argv[2], "recall")) validate_yolo_recall(cfg, weights);
     else if(0==strcmp(argv[2], "demo")) demo(cfg, weights, thresh, cam_index, filename, voc_names, 20, frame_skip, prefix, avg, .5, 0,0,0,0);
 }
