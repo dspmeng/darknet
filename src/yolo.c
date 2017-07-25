@@ -164,6 +164,7 @@ void validate_yolo(char *cfgfile, char *weightfile, char *testlist, char *result
     pthread_t *thr = calloc(nthreads, sizeof(pthread_t));
 
     load_args args = {0};
+    args.c = net.c;
     args.w = net.w;
     args.h = net.h;
     args.type = IMAGE_DATA;
@@ -320,7 +321,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
             if(!input) return;
             strtok(input, "\n");
         }
-        image im = load_image_color(input,0,0);
+        image im = load_image(input,0,0,net.c);
         image sized = resize_image(im, net.w, net.h);
         float *X = sized.data;
         time=clock();
@@ -388,7 +389,7 @@ void test_yolo_dir(char * cfgfile, char *weightfile, char * indir, char * outdir
             continue;
         }
 
-        image im = load_image_color(input,0,0);
+        image im = load_image(input,0,0,net.c);
         image sized = resize_image(im, net.w, net.h);
         float *X = sized.data;
         time=clock();

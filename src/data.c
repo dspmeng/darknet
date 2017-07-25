@@ -761,7 +761,8 @@ void *load_thread(void *ptr)
     } else if (a.type == COMPARE_DATA){
         *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
     } else if (a.type == IMAGE_DATA){
-        *(a.im) = load_image_color(a.path, 0, 0);
+        *(a.im) = load_image(a.path, 0, 0, a.c);
+
         *(a.resized) = resize_image(*(a.im), a.w, a.h);
     } else if (a.type == LETTERBOX_DATA){
         *(a.im) = load_image_color(a.path, 0, 0);

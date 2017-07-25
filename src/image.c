@@ -115,7 +115,13 @@ void draw_grid(image a, int nx, int ny)
 void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b)
 {
     //normalize_image(a);
-    int i;
+    int i, c;
+    int box[3] = {r, g, b};
+
+    // draw black bbox on gray image
+    if (a.c == 1)
+        box[0] = 0;
+
     if(x1 < 0) x1 = 0;
     if(x1 >= a.w) x1 = a.w-1;
     if(x2 < 0) x2 = 0;
@@ -127,24 +133,16 @@ void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b
     if(y2 >= a.h) y2 = a.h-1;
 
     for(i = x1; i <= x2; ++i){
-        a.data[i + y1*a.w + 0*a.w*a.h] = r;
-        a.data[i + y2*a.w + 0*a.w*a.h] = r;
-
-        a.data[i + y1*a.w + 1*a.w*a.h] = g;
-        a.data[i + y2*a.w + 1*a.w*a.h] = g;
-
-        a.data[i + y1*a.w + 2*a.w*a.h] = b;
-        a.data[i + y2*a.w + 2*a.w*a.h] = b;
+        for (c = 0; c < a.c; c++) {
+            a.data[i + y1*a.w + c*a.w*a.h] = box[c];
+            a.data[i + y2*a.w + c*a.w*a.h] = box[c];
+        }
     }
     for(i = y1; i <= y2; ++i){
-        a.data[x1 + i*a.w + 0*a.w*a.h] = r;
-        a.data[x2 + i*a.w + 0*a.w*a.h] = r;
-
-        a.data[x1 + i*a.w + 1*a.w*a.h] = g;
-        a.data[x2 + i*a.w + 1*a.w*a.h] = g;
-
-        a.data[x1 + i*a.w + 2*a.w*a.h] = b;
-        a.data[x2 + i*a.w + 2*a.w*a.h] = b;
+        for (c = 0; c < a.c; c++) {
+            a.data[x1 + i*a.w + c*a.w*a.h] = box[c];
+            a.data[x2 + i*a.w + c*a.w*a.h] = box[c];
+        }
     }
 }
 
@@ -541,7 +539,8 @@ image load_image_cv(char *filename, int channels)
     }
     image out = ipl_to_image(src);
     cvReleaseImage(&src);
-    rgbgr_image(out);
+    if (channels == 3)
+        rgbgr_image(out);
     return out;
 }
 
@@ -1205,16 +1204,22 @@ void exposure_image(image im, float sat)
 
 void distort_image(image im, float hue, float sat, float val)
 {
-    rgb_to_hsv(im);
-    scale_image_channel(im, 1, sat);
-    scale_image_channel(im, 2, val);
-    int i;
-    for(i = 0; i < im.w*im.h; ++i){
-        im.data[i] = im.data[i] + hue;
-        if (im.data[i] > 1) im.data[i] -= 1;
-        if (im.data[i] < 0) im.data[i] += 1;
+    assert(im.c == 3 || im.c == 1);
+    if (im.c == 3) {
+        rgb_to_hsv(im);
+        scale_image_channel(im, 1, sat);
+        scale_image_channel(im, 2, val);
+        int i;
+        for(i = 0; i < im.w*im.h; ++i){
+            im.data[i] = im.data[i] + hue;
+            if (im.data[i] > 1) im.data[i] -= 1;
+            if (im.data[i] < 0) im.data[i] += 1;
+        }
+        hsv_to_rgb(im);
+    } else {
+        scale_image_channel(im, 0, val);
     }
-    hsv_to_rgb(im);
+
     constrain_image(im);
 }
 

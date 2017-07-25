@@ -415,6 +415,38 @@ void merge_batchnorm(int argc, char **argv)
     free_network(net);
 }
 
+void combine_input(int argc, char **argv)
+{
+    if (argc != 5) {
+        fprintf(stderr, "usage: %s %s CFG IN_WEIGHT OUT_WEIGHT\n",
+            argv[0], argv[1]);
+         return;
+    }
+
+    network net = parse_network_cfg(argv[2]);
+    load_weights(&net, argv[3]);
+
+    net.gpu_index = -1;
+    gpu_index = -1;
+    layer* l = &net.layers[0];
+    float* combined_weights = calloc(l->n * l->size * l->size, sizeof(float));
+    int n, k, c;
+    for (n = 0; n < l->n; n++) {
+        for (k = 0; k < l->size * l->size; k++) {
+            for (c = 0; c < l->c; c++) {
+                combined_weights[n * l->size * l->size + k] +=
+                    l->weights[n * l->c * l->size * l->size + c * l->size * l->size + k];
+            }
+        }
+    }
+    l->c = 1;
+    free(l->weights);
+    l->weights = combined_weights;
+    save_weights(net, argv[4]);
+
+    free_network(net);
+}
+
 int main(int argc, char **argv)
 {
     //test_resize("data/bad.jpg");
@@ -521,6 +553,8 @@ int main(int argc, char **argv)
         test_resize(argv[2]);
     } else if (0 == strcmp(argv[1], "mergebn")) {
         merge_batchnorm(argc, argv);
+    } else if (0 == strcmp(argv[1], "combine")) {
+        combine_input(argc, argv);
     } else {
         fprintf(stderr, "Not an option: %s\n", argv[1]);
     }
