@@ -198,6 +198,11 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             rgb[0] = red;
             rgb[1] = green;
             rgb[2] = blue;
+
+            if (im.c == 1) {
+                rgb[0] = rgb[1] = rgb[2] = 1.0;
+            }
+
             box b = boxes[i];
 
             int left  = (b.x-b.w/2.)*im.w;

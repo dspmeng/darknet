@@ -7,6 +7,7 @@
 #include "demo.h"
 
 #include <fenv.h>
+#include <sys/stat.h>
 
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
@@ -288,7 +289,7 @@ void validate_yolo_recall(char *cfgfile, char *weightfile)
     }
 }
 
-void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
+void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, float thresh)
 {
     image **alphabet = load_alphabet();
     network net = parse_network_cfg(cfgfile);
@@ -306,8 +307,32 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
     box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
     float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
     for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
+
+    struct stat buf;
+    FILE *fp = NULL;
+    char cmdstr[256];
+    if (filename && lstat(filename, &buf) < 0) {
+        fprintf(stderr, "lstat error on %s\n", filename);
+        return;
+    }
+    if (S_ISDIR(buf.st_mode)) {
+        snprintf(cmdstr, 256, "ls -1 %s", filename);
+        fp = popen(cmdstr, "r");
+        if (fp == NULL) {
+            fprintf(stderr, "Can't open %s\n", filename);
+            return;
+        }
+        strncpy(input, filename, strlen(filename));
+    }
+
+    char save_as[1024];
     while(1){
-        if(filename){
+        if (fp != NULL) {
+            if (fgets(input + strlen(filename), 128, fp) == NULL)
+                break;
+            // remove new line from fgets
+            input[strlen(input) - 1] = '\0';
+        } else if(filename){
             strncpy(input, filename, 256);
         } else {
             printf("Enter Image Path: ");
@@ -326,16 +351,24 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
-        save_image(im, "predictions");
-        show_image(im, "predictions");
+        if (results) {
+            strncpy(save_as, results, strlen(results));
+            save_as[strlen(results)] = '\0';
+            strcat(save_as, &input[strlen(filename)]);
+            printf("save as %s\n", save_as);
+            save_image(im, save_as);
+        } else {
+            save_image(im, "predictions");
+            show_image(im, "predictions");
+#ifdef OPENCV
+            cvWaitKey(0);
+            cvDestroyAllWindows();
+#endif
+        }
 
         free_image(im);
         free_image(sized);
-#ifdef OPENCV
-        cvWaitKey(0);
-        cvDestroyAllWindows();
-#endif
-        if (filename) break;
+        if (!S_ISDIR(buf.st_mode) && filename) break;
     }
 }
 
@@ -358,7 +391,7 @@ void run_yolo(int argc, char **argv)
     char *cfg = argv[3];
     char *weights = (argc > 4) ? argv[4] : 0;
     char *filename = (argc > 5) ? argv[5]: 0;
-    if(0==strcmp(argv[2], "test")) test_yolo(cfg, weights, filename, thresh);
+    if(0==strcmp(argv[2], "test")) test_yolo(cfg, weights, filename, results, thresh);
     else if(0==strcmp(argv[2], "train")) train_yolo(cfg, weights, backup);
     else if(0==strcmp(argv[2], "valid")) validate_yolo(cfg, weights, results);
     else if(0==strcmp(argv[2], "recall")) validate_yolo_recall(cfg, weights);
