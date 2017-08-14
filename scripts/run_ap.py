@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from voc_eval import voc_eval, darknet_label_parser, voc_annot_parser
 import os, sys
 import argparse
