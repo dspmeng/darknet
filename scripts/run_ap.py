@@ -4,7 +4,7 @@ from voc_eval import voc_eval, darknet_label_parser, voc_annot_parser
 import os, sys
 import argparse
 import matplotlib
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from itertools import cycle
 
