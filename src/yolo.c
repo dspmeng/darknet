@@ -347,9 +347,50 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, f
         time=clock();
         network_predict(net, X);
         printf("%s: Predicted with threshold %f in %f seconds.\n", input, thresh, sec(clock()-time));
+//#define DUMP_DETECTION_LAYER
+#ifdef DUMP_DETECTION_LAYER
+        printf("detection layer [side %d, classes %d, n %d] has %d outputs:\n",
+               l.side, l.classes, l.n, l.outputs);
+        {
+            int i, j;
+            FILE* fp = fopen("detection_layer.txt", "w");
+            if (fp) {
+                float* output = l.output;
+                for (i = 0; i < l.side * l.side; i++) {
+                    for (j = 0; j < l.classes; j++) {
+                        fprintf(fp, "%9.6f ", output[i * l.classes + j]);
+                    }
+                    fprintf(fp, "\n");
+                }
+                output += l.side * l.side * l.classes;
+                for (i = 0; i < l.side * l.side; i++) {
+                    for (j = 0; j < l.n; j++) {
+                        fprintf(fp, "%9.6f ", output[i * l.n + j]);
+                    }
+                    fprintf(fp, "\n");
+                }
+                output += l.side * l.side * l.n;
+                for (i = 0; i < l.side * l.side; i++) {
+                    for (j = 0; j < l.coords; j++) {
+                        fprintf(fp, "%9.6f ", output[i * l.coords + j]);
+                    }
+                    fprintf(fp, "\n");
+                }
+            } else {
+                fprintf(stderr, "Failed to open detection_layer.txt\n");
+            }
+            fclose(fp);
+        }
+        {
+            FILE* fp = fopen("detection_layer.bin", "wb");
+            fwrite(l.output, sizeof(float), l.outputs, fp);
+            fclose(fp);
+        }
+#endif
         get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
         //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+        printf("detection_thresh: %f, nms_thresh: %f\n", thresh, nms);
         draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
         if (results) {
             strncpy(save_as, results, strlen(results));

@@ -1,6 +1,6 @@
 classes= 20
-train  = /home/jiameng/pascal_voc/train.txt
-valid  = /home/jiameng/pascal_voc/2007_test.txt
+train  = ../pascal_voc/train.txt
+valid  = ../pascal_voc/2007_test.txt
 names = data/voc.names
 backup = backup
 
