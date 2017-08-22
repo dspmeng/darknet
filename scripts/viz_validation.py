@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 """
-scripts/viz_validation.py --thresh 0.2 ~/place/barrier_ssd/test_list.txt ../dss_barrier/labels/ ~/deeplearning/ssd-caffe/jobs/VGGNet/barrier/SSD_300x300/results/comp4_det_test_largetruck.txt
+scripts/viz_validation.py --thresh 0.2 ../pascal_voc/2007_test.txt ../pascal_voc/VOCdevkit/VOC2007/labels/ ~/Downloads/comp4_det_test_bottle.txt data/voc.names
+scripts/viz_validation.py --thresh 0.2 ~/place/barrier_ssd/test_list.txt ../dss_barrier/labels/ ~/deeplearning/ssd-caffe/jobs/VGGNet/barrier/SSD_300x300/results/comp4_det_test_largetruck.txt ../dss_barrier/class_names
 """
 
 import os, sys, cv2
@@ -9,19 +10,9 @@ import argparse
 from matplotlib import pyplot as plt
 
 
-CLASS_NAMES = [
-    'minibus',
-    'minitruck',
-    'car',
-    'mediumbus',
-    'mpv',
-    'suv',
-    'largetruck',
-    'largebus',
-    'other']
+def viz_results(list_file, gt_dir, result_file, class_names, thresh):
+    classes = [line.rstrip() for line in open(class_names).readlines()]
 
-
-def viz_results(list_file, gt_dir, result_file, thresh):
     img_dict = {}
     images = [line.rstrip() for line in open(list_file).readlines()]
     for img in images:
@@ -37,7 +28,7 @@ def viz_results(list_file, gt_dir, result_file, thresh):
             if objects:
                 gts = [line.rstrip() for line in \
                        open(os.path.join(gt_dir, previous_idx+'.txt')).readlines()]
-                show_results(img, gts, objects)
+                show_results(img, gts, objects, classes)
             previous_idx = idx
             img = img_dict[idx]
             del objects[:]
@@ -48,7 +39,7 @@ def viz_results(list_file, gt_dir, result_file, thresh):
                         int(float(xmax)), int(float(ymax)), float(score)])
 
 
-def show_results(image, gts, objects):
+def show_results(image, gts, objects, classes):
     im = cv2.imread(image)
     for gt in gts:
         t,cx,cy,w,h = gt.split()
@@ -56,15 +47,15 @@ def show_results(image, gts, objects):
         ymin = int((float(cy) - float(h)/2) * im.shape[0])
         xmax = int(float(w) * im.shape[1]) + xmin
         ymax = int(float(h) * im.shape[0]) + ymin
-        cv2.rectangle(im, (xmin,ymin), (xmax,ymax), (255,0,0), 3)
-        cv2.putText(im, CLASS_NAMES[int(t)],
+        cv2.rectangle(im, (xmin,ymin), (xmax,ymax), (255,0,0), 1)
+        cv2.putText(im, classes[int(t)],
                     ((xmax+xmin)/2, (ymax+ymin)/2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, .25, (255,255,255), 1, cv2.LINE_AA)
     for obj in objects:
-        cv2.rectangle(im, (obj[0],obj[1]), (obj[2],obj[3]), (0,255,0), 3)
+        cv2.rectangle(im, (obj[0],obj[1]), (obj[2],obj[3]), (0,255,0), 1)
         cv2.putText(im, 'score: {}'.format(obj[4]),
                     (obj[0]+4, obj[3]-4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2, (255,255,255), 2, cv2.LINE_AA)
+                    cv2.FONT_HERSHEY_SIMPLEX, .25, (255,255,255), 1, cv2.LINE_AA)
     im = im[:,:,::-1]
     plt.title(image)
     plt.imshow(im)
@@ -77,6 +68,7 @@ def parse_args():
     parser.add_argument('list_file', help='list file of images')
     parser.add_argument('gt_dir', help='dir to ground truth labels')
     parser.add_argument('result_file', help='detection result file to check')
+    parser.add_argument('class_names', help='list file of class names')
     parser.add_argument('--thresh', help='confidience score threshold',
                         type=float, default=0.2)
     return parser.parse_args()
@@ -84,4 +76,4 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    viz_results(args.list_file, args.gt_dir, args.result_file, args.thresh)
+    viz_results(args.list_file, args.gt_dir, args.result_file, args.class_names, args.thresh)
