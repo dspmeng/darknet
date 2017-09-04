@@ -60,7 +60,7 @@ image tile_images(image a, image b, int dx)
     if(a.w == 0) return copy_image(b);
     image c = make_image(a.w + b.w + dx, (a.h > b.h) ? a.h : b.h, (a.c > b.c) ? a.c : b.c);
     fill_cpu(c.w*c.h*c.c, 1, c.data, 1);
-    embed_image(a, c, 0, 0); 
+    embed_image(a, c, 0, 0);
     composite_image(b, c, a.w + dx, 0);
     return c;
 }
@@ -220,6 +220,69 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 image label = get_label(alphabet, names[class], (im.h*.01)/10);
                 draw_label(im, top + width, left, label, rgb);
                 printf("%s,%d,%d,%d,%d\n", names[class], left, top, right-left, bot-top);
+            }
+        }
+    }
+}
+
+#define MOSAIC_BLK 16
+
+/**
+ * @brief draw mosaic on specified class of detections
+ * @param mosaic
+ *    The class to be mosaiced
+ */
+void draw_mosaic(image im, int num, float thresh, box *boxes, float **probs, int classes, int mosaic)
+{
+    int i, c, w, h;
+
+    for(i = 0; i < num; ++i){
+        int class = max_index(probs[i], classes);
+        float prob = probs[i][class];
+        if(class == mosaic && prob > thresh){
+            box b = boxes[i];
+
+            int left  = (b.x-b.w/2.)*im.w;
+            int right = (b.x+b.w/2.)*im.w;
+            int top   = (b.y-b.h/2.)*im.h;
+            int bot   = (b.y+b.h/2.)*im.h;
+
+            if(left < 0) left = 0;
+            if(top < 0) top = 0;
+#ifdef MOSAIC_BLK
+            if(right > im.w-MOSAIC_BLK) right = im.w-MOSAIC_BLK;
+            if(bot > im.h-MOSAIC_BLK) bot = im.h-MOSAIC_BLK;
+#else
+            if(right > im.w-1) right = im.w-1;
+            if(bot > im.h-1) bot = im.h-1;
+#endif
+
+            for (c = 0; c < im.c; c++) {
+#ifdef MOSAIC_BLK
+                float* data = im.data + c * im.h * im.w;
+                for (int blk_y = top; blk_y < bot; blk_y += MOSAIC_BLK) {
+                    for (int blk_x = left; blk_x < right; blk_x += MOSAIC_BLK) {
+                        float mean = .0;
+                        for (int y = blk_y; y < blk_y + MOSAIC_BLK; y++) {
+                            for (int x = blk_x; x < blk_x + MOSAIC_BLK; x++) {
+                                mean += data[y * im.w + x];
+                            }
+                        }
+                        mean /= (MOSAIC_BLK * MOSAIC_BLK);
+                        for (int y = blk_y; y < blk_y + MOSAIC_BLK; y++) {
+                            for (int x = blk_x; x < blk_x + MOSAIC_BLK; x++) {
+                                data[y * im.w + x] = mean;
+                            }
+                        }
+                    }
+                }
+#else
+                for (h = top; h <= bot; h++) {
+                    float* data = im.data + c * im.h * im.w + h * im.w;
+                    for (w = left; w <= right; w++)
+                        data[w] = 0.5;
+                }
+#endif
             }
         }
     }
@@ -431,7 +494,7 @@ void show_image_cv(image p, const char *name)
 
     IplImage *disp = cvCreateImage(cvSize(p.w,p.h), IPL_DEPTH_8U, p.c);
     int step = disp->widthStep;
-    cvNamedWindow(buff, CV_WINDOW_NORMAL); 
+    cvNamedWindow(buff, CV_WINDOW_NORMAL);
     //cvMoveWindow(buff, 100*(windows%10) + 200*(windows/10), 100*(windows%10));
     ++windows;
     for(y = 0; y < p.h; ++y){
@@ -489,6 +552,28 @@ image ipl_to_image(IplImage* src)
         }
     }
     return out;
+}
+
+void image_to_ipl(image im, IplImage* ipl)
+{
+    assert(im.w == ipl->width);
+    assert(im.h == ipl->height);
+    assert(im.c == ipl->nChannels);
+
+    unsigned char *data = (unsigned char *)ipl->imageData;
+    int h = ipl->height;
+    int w = ipl->width;
+    int c = ipl->nChannels;
+    int step = ipl->widthStep;
+    int i, j, k, count=0;
+
+    for(k= 0; k < c; ++k){
+        for(i = 0; i < h; ++i){
+            for(j = 0; j < w; ++j){
+                data[i*step + j*c + (2-k)] = im.data[count++] * 255.0;
+            }
+        }
+    }
 }
 
 image load_image_cv(char *filename, int channels)
@@ -649,7 +734,7 @@ void place_image(image im, int w, int h, int dx, int dy, image canvas)
 
 image center_crop_image(image im, int w, int h)
 {
-    int m = (im.w < im.h) ? im.w : im.h;   
+    int m = (im.w < im.h) ? im.w : im.h;
     image c = crop_image(im, (im.w - m) / 2, (im.h - m)/2, m, m);
     image r = resize_image(c, w, h);
     free_image(c);
@@ -815,7 +900,7 @@ image letterbox_image(image im, int w, int h)
     fill_image(boxed, .5);
     //int i;
     //for(i = 0; i < boxed.w*boxed.h*boxed.c; ++i) boxed.data[i] = 0;
-    embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2); 
+    embed_image(resized, boxed, (w-new_w)/2, (h-new_h)/2);
     free_image(resized);
     return boxed;
 }
@@ -1070,7 +1155,7 @@ image blend_image(image fore, image back, float alpha)
     for(k = 0; k < fore.c; ++k){
         for(j = 0; j < fore.h; ++j){
             for(i = 0; i < fore.w; ++i){
-                float val = alpha * get_pixel(fore, i, j, k) + 
+                float val = alpha * get_pixel(fore, i, j, k) +
                     (1 - alpha)* get_pixel(back, i, j, k);
                 set_pixel(blend, i, j, k, val);
             }
@@ -1189,8 +1274,8 @@ float bilinear_interpolate(image im, float x, float y, int c)
     float dx = x - ix;
     float dy = y - iy;
 
-    float val = (1-dy) * (1-dx) * get_pixel_extend(im, ix, iy, c) + 
-        dy     * (1-dx) * get_pixel_extend(im, ix, iy+1, c) + 
+    float val = (1-dy) * (1-dx) * get_pixel_extend(im, ix, iy, c) +
+        dy     * (1-dx) * get_pixel_extend(im, ix, iy+1, c) +
         (1-dy) *   dx   * get_pixel_extend(im, ix+1, iy, c) +
         dy     *   dx   * get_pixel_extend(im, ix+1, iy+1, c);
     return val;
@@ -1198,7 +1283,7 @@ float bilinear_interpolate(image im, float x, float y, int c)
 
 image resize_image(image im, int w, int h)
 {
-    image resized = make_image(w, h, im.c);   
+    image resized = make_image(w, h, im.c);
     image part = make_image(w, im.h, im.c);
     int r, c, k;
     float w_scale = (float)(im.w - 1) / (w - 1);
@@ -1422,7 +1507,7 @@ image collapse_images_vert(image *ims, int n)
         free_image(copy);
     }
     return filters;
-} 
+}
 
 image collapse_images_horz(image *ims, int n)
 {
@@ -1458,7 +1543,7 @@ image collapse_images_horz(image *ims, int n)
         free_image(copy);
     }
     return filters;
-} 
+}
 
 void show_image_normalized(image im, const char *name)
 {
