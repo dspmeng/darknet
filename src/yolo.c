@@ -11,6 +11,18 @@
 
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
+char *barrier_names[] = {
+    "minibus",
+    "minitruck",
+    "car",
+    "mediumbus",
+    "mpv",
+    "suv",
+    "largetruck",
+    "largebus",
+    "other"
+};
+
 void train_yolo(char *cfgfile, char *weightfile, char *backup)
 {
     char *train_images = "../pascal_voc/train.txt";
@@ -289,24 +301,158 @@ void validate_yolo_recall(char *cfgfile, char *weightfile)
     }
 }
 
-void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, float thresh)
+void infer_video_yolo(network net, const char* input, float thresh, char *filename, char* results)
 {
     image **alphabet = load_alphabet();
+    float nms=.4;
+    detection_layer l = net.layers[net.n-1];
+    box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
+    float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
+    int j;
+    for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
+
+    CvCapture* capture = cvCaptureFromFile(input);
+    IplImage* src = NULL;
+    CvVideoWriter* writer = NULL;
+    int count = 0;
+    float total_time = 0;
+    clock_t time;
+    while (src = cvQueryFrame(capture)) {
+        image im = ipl_to_image(src);
+        CvSize size = {im.w, im.h};
+        if (writer == NULL) {
+            writer = cvCreateVideoWriter("out.avi", CV_FOURCC('D','I','V','X'), 25.0, size, 1);
+        }
+
+        rgbgr_image(im);
+        image sized = resize_image(im, net.w, net.h);
+
+        float *X = sized.data;
+        time=clock();
+        network_predict(net, X);
+        total_time += sec(clock()-time);
+        get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
+        if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
+        draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, barrier_names/*voc_names*/, alphabet, l.classes);
+
+        if (writer) {
+            IplImage* dst = cvCreateImage(size, IPL_DEPTH_8U, 3);
+            image_to_ipl(im, dst);
+            cvWriteFrame(writer, dst);
+            cvReleaseImage(&dst);
+        }
+        else{
+            fprintf(stderr, "can't open writer\n");
+        }
+
+        free_image(im);
+        free_image(sized);
+        printf("\r%d frames processed", count++);
+        fflush(stdout);
+    }
+
+    printf("%s: %d frames, average %f seconds.\n", input, count, total_time / count);
+
+    if (writer) cvReleaseVideoWriter(&writer);
+    if (capture) cvReleaseCapture(&capture);
+    free(boxes);
+    free_ptrs((void **)probs, l.side*l.side*l.n);
+}
+
+void infer_image_yolo(network net, const char* input, float thresh, char *filename, char* results)
+{
+    image **alphabet = load_alphabet();
+    float nms=.4;
+    detection_layer l = net.layers[net.n-1];
+    clock_t time;
+    image im = load_image(input,0,0,net.c);
+    image sized = resize_image(im, net.w, net.h);
+    float *X = sized.data;
+    time=clock();
+    box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
+    float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
+    char save_as[1024];
+    int j;
+    for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
+
+    network_predict(net, X);
+    printf("%s: Predicted with threshold %f in %f seconds.\n", input, thresh, sec(clock()-time));
+//#define DUMP_DETECTION_LAYER
+#ifdef DUMP_DETECTION_LAYER
+    printf("detection layer [side %d, classes %d, n %d] has %d outputs:\n",
+           l.side, l.classes, l.n, l.outputs);
+    {
+        int i, j;
+        FILE* fp = fopen("detection_layer.txt", "w");
+        if (fp) {
+            float* output = l.output;
+            for (i = 0; i < l.side * l.side; i++) {
+                for (j = 0; j < l.classes; j++) {
+                    fprintf(fp, "%9.6f ", output[i * l.classes + j]);
+                }
+                fprintf(fp, "\n");
+            }
+            output += l.side * l.side * l.classes;
+            for (i = 0; i < l.side * l.side; i++) {
+                for (j = 0; j < l.n; j++) {
+                    fprintf(fp, "%9.6f ", output[i * l.n + j]);
+                }
+                fprintf(fp, "\n");
+            }
+            output += l.side * l.side * l.n;
+            for (i = 0; i < l.side * l.side; i++) {
+                for (j = 0; j < l.coords; j++) {
+                    fprintf(fp, "%9.6f ", output[i * l.coords + j]);
+                }
+                fprintf(fp, "\n");
+            }
+        } else {
+            fprintf(stderr, "Failed to open detection_layer.txt\n");
+        }
+        fclose(fp);
+    }
+    {
+        FILE* fp = fopen("detection_layer.bin", "wb");
+        fwrite(l.output, sizeof(float), l.outputs, fp);
+        fclose(fp);
+    }
+#endif
+    get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
+    if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
+    //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
+    printf("detection_thresh: %f, nms_thresh: %f\n", thresh, nms);
+    draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, l.classes);
+    if (results) {
+        strncpy(save_as, results, strlen(results));
+        save_as[strlen(results)] = '\0';
+        strcat(save_as, &input[strlen(filename)]);
+        printf("save as %s\n", save_as);
+        save_image(im, save_as);
+    } else {
+        save_image(im, "predictions");
+        show_image(im, "predictions");
+#ifdef OPENCV
+        cvWaitKey(0);
+        cvDestroyAllWindows();
+#endif
+    }
+
+    free_image(im);
+    free_image(sized);
+    free(boxes);
+    free_ptrs((void **)probs, l.side*l.side*l.n);
+}
+
+void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, float thresh)
+{
     network net = parse_network_cfg(cfgfile);
     if(weightfile){
         load_weights(&net, weightfile);
     }
-    detection_layer l = net.layers[net.n-1];
     set_batch_network(&net, 1);
     srand(2222222);
-    clock_t time;
     char buff[256];
     char *input = buff;
-    int j;
-    float nms=.4;
-    box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
-    float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
-    for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
 
     struct stat buf;
     FILE *fp = NULL;
@@ -325,7 +471,6 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, f
         strncpy(input, filename, strlen(filename));
     }
 
-    char save_as[1024];
     while(1){
         if (fp != NULL) {
             if (fgets(input + strlen(filename), 128, fp) == NULL)
@@ -341,74 +486,15 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, f
             if(!input) return;
             strtok(input, "\n");
         }
-        image im = load_image(input,0,0,net.c);
-        image sized = resize_image(im, net.w, net.h);
-        float *X = sized.data;
-        time=clock();
-        network_predict(net, X);
-        printf("%s: Predicted with threshold %f in %f seconds.\n", input, thresh, sec(clock()-time));
-//#define DUMP_DETECTION_LAYER
-#ifdef DUMP_DETECTION_LAYER
-        printf("detection layer [side %d, classes %d, n %d] has %d outputs:\n",
-               l.side, l.classes, l.n, l.outputs);
-        {
-            int i, j;
-            FILE* fp = fopen("detection_layer.txt", "w");
-            if (fp) {
-                float* output = l.output;
-                for (i = 0; i < l.side * l.side; i++) {
-                    for (j = 0; j < l.classes; j++) {
-                        fprintf(fp, "%9.6f ", output[i * l.classes + j]);
-                    }
-                    fprintf(fp, "\n");
-                }
-                output += l.side * l.side * l.classes;
-                for (i = 0; i < l.side * l.side; i++) {
-                    for (j = 0; j < l.n; j++) {
-                        fprintf(fp, "%9.6f ", output[i * l.n + j]);
-                    }
-                    fprintf(fp, "\n");
-                }
-                output += l.side * l.side * l.n;
-                for (i = 0; i < l.side * l.side; i++) {
-                    for (j = 0; j < l.coords; j++) {
-                        fprintf(fp, "%9.6f ", output[i * l.coords + j]);
-                    }
-                    fprintf(fp, "\n");
-                }
-            } else {
-                fprintf(stderr, "Failed to open detection_layer.txt\n");
-            }
-            fclose(fp);
-        }
-        {
-            FILE* fp = fopen("detection_layer.bin", "wb");
-            fwrite(l.output, sizeof(float), l.outputs, fp);
-            fclose(fp);
-        }
-#endif
-        get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
-        if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
-        //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
-        printf("detection_thresh: %f, nms_thresh: %f\n", thresh, nms);
-        draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
-        if (results) {
-            strncpy(save_as, results, strlen(results));
-            save_as[strlen(results)] = '\0';
-            strcat(save_as, &input[strlen(filename)]);
-            printf("save as %s\n", save_as);
-            save_image(im, save_as);
-        } else {
-            save_image(im, "predictions");
-            show_image(im, "predictions");
 #ifdef OPENCV
-            cvWaitKey(0);
-            cvDestroyAllWindows();
+        int len = strlen(input);
+        if (len > 4 &&
+            (!strcmp(input + len - 4, ".avi") ||
+             !strcmp(input + len - 4, ".mp4"))) {
+            infer_video_yolo(net, input, thresh, filename, results);
+        } else
 #endif
-        }
-
-        free_image(im);
-        free_image(sized);
+        infer_image_yolo(net, input, thresh, filename, results);
         if (!S_ISDIR(buf.st_mode) && filename) break;
     }
 }

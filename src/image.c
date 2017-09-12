@@ -225,6 +225,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 strcat(name_percent, percent);
                 image label = get_label(alphabet, name_percent, (im.h*.01)/10);
                 draw_label(im, top + width, left, label, rgb);
+                free_image(label);
                 printf("%s,%d,%d,%d,%d\n", names[class], left, top, right-left, bot-top);
             }
         }
