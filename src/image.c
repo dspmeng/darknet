@@ -217,7 +217,13 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
             draw_box_width(im, left, top, right, bot, width, red, green, blue);
             if (alphabet) {
-                image label = get_label(alphabet, names[class], (im.h*.01)/10);
+                int conf = (int)(prob * 100);
+                size_t name_len = strlen(names[class]);
+                char *name_percent = calloc(name_len + 4, 1);
+                char percent[3] = {conf/10+'0', conf%10+'0', '%'};
+                strcpy(name_percent, names[class]);
+                strcat(name_percent, percent);
+                image label = get_label(alphabet, name_percent, (im.h*.01)/10);
                 draw_label(im, top + width, left, label, rgb);
                 printf("%s,%d,%d,%d,%d\n", names[class], left, top, right-left, bot-top);
             }
