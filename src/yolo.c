@@ -321,7 +321,7 @@ void infer_video_yolo(network net, const char* input, float thresh, char *filena
         image im = ipl_to_image(src);
         CvSize size = {im.w, im.h};
         if (writer == NULL) {
-            writer = cvCreateVideoWriter("out.avi", CV_FOURCC('D','I','V','X'), 25.0, size, 1);
+            writer = cvCreateVideoWriter("out.avi", CV_FOURCC('X','2','6','4'), 25.0, size, 1);
         }
 
         rgbgr_image(im);
@@ -333,16 +333,13 @@ void infer_video_yolo(network net, const char* input, float thresh, char *filena
         total_time += sec(clock()-time);
         get_detection_boxes(l, 1, 1, thresh, probs, boxes, 0);
         if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
-        draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, barrier_names/*voc_names*/, alphabet, l.classes);
+        bool has_obj = draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, barrier_names/*voc_names*/, alphabet, l.classes);
 
-        if (writer) {
+        if (writer && has_obj) {
             IplImage* dst = cvCreateImage(size, IPL_DEPTH_8U, 3);
             image_to_ipl(im, dst);
             cvWriteFrame(writer, dst);
             cvReleaseImage(&dst);
-        }
-        else{
-            fprintf(stderr, "can't open writer\n");
         }
 
         free_image(im);
@@ -513,7 +510,7 @@ void run_yolo(int argc, char **argv)
         return;
     }
 
-    feenableexcept(FE_INVALID | FE_OVERFLOW);
+    //feenableexcept(FE_INVALID | FE_OVERFLOW);
 
     char *cfg = argv[3];
     char *weights = (argc > 4) ? argv[4] : 0;

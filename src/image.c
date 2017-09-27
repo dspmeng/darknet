@@ -169,15 +169,16 @@ image **load_alphabet()
     return alphabets;
 }
 
-void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
+bool draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
 {
     int i;
+    bool has_obj = false;
 
     for(i = 0; i < num; ++i){
         int class = max_index(probs[i], classes);
         float prob = probs[i][class];
         if(prob > thresh){
-
+            has_obj = true;
             int width = im.h * .004;
 
             if(0){
@@ -220,7 +221,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
                 int conf = (int)(prob * 100);
                 size_t name_len = strlen(names[class]);
                 char *name_percent = calloc(name_len + 4, 1);
-                char percent[3] = {conf/10+'0', conf%10+'0', '%'};
+                char percent[4] = {conf/10+'0', conf%10+'0', '%', 0};
                 strcpy(name_percent, names[class]);
                 strcat(name_percent, percent);
                 image label = get_label(alphabet, name_percent, (im.h*.01)/10);
@@ -230,6 +231,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
             }
         }
     }
+
+    return has_obj;
 }
 
 #define MOSAIC_BLK 16
