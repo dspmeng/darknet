@@ -629,7 +629,7 @@ void infer_image(network net, const char* input, char** names, float thresh, flo
 }
 
 #ifdef OPENCV
-void infer_video(network net, const char* input, char** names, float thresh, float hier_thresh, char *outfile, int fullscreen, int mosaic)
+void infer_video(network net, const char* input, char** names, float thresh, float hier_thresh, char *outfile, int fullscreen, int target, int mosaic)
 {
     int j;
     float nms=.4;
@@ -661,8 +661,8 @@ void infer_video(network net, const char* input, char** names, float thresh, flo
         total_time += sec(clock()-time);
         get_region_boxes(l, im.w, im.h, net.w, net.h, thresh, probs, boxes, 0, 0, hier_thresh, 1);
         if (nms) do_nms_obj(boxes, probs, l.w*l.h*l.n, l.classes, nms);
-        if (mosaic >= 0) {
-            draw_mosaic(im, l.w*l.h*l.n, thresh, boxes, probs, l.classes, mosaic);
+        if (target >= 0) {
+            draw_mosaic(im, l.w*l.h*l.n, thresh, boxes, probs, l.classes, target, mosaic);
         } else {
             draw_detections(im, l.w*l.h*l.n, thresh, boxes, probs, names, alphabet, l.classes);
         }
@@ -691,7 +691,7 @@ void infer_video(network net, const char* input, char** names, float thresh, flo
 }
 #endif
 
-void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen, int mosaic)
+void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, char *outfile, int fullscreen, int target, int mosaic)
 {
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
@@ -743,7 +743,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         if (len > 4 &&
             (!strcmp(input + len - 4, ".avi") ||
              !strcmp(input + len - 4, ".mp4"))) {
-            infer_video(net, input, names, thresh, hier_thresh, outfile, fullscreen, mosaic);
+            infer_video(net, input, names, thresh, hier_thresh, outfile, fullscreen, target, mosaic);
         } else
 #endif
         infer_image(net, input, names, thresh, hier_thresh, outfile, fullscreen);
@@ -793,13 +793,14 @@ void run_detector(int argc, char **argv)
     int width = find_int_arg(argc, argv, "-w", 0);
     int height = find_int_arg(argc, argv, "-h", 0);
     int fps = find_int_arg(argc, argv, "-fps", 0);
-    int mosaic = find_int_arg(argc, argv, "-mosaic", -1);
+    int target = find_int_arg(argc, argv, "-target", -1);
+    int mosaic = find_int_arg(argc, argv, "-mosaic", 0);
 
     char *datacfg = argv[3];
     char *cfg = argv[4];
     char *weights = (argc > 5) ? argv[5] : 0;
     char *filename = (argc > 6) ? argv[6]: 0;
-    if(0==strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, outfile, fullscreen, mosaic);
+    if(0==strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, outfile, fullscreen, target, mosaic);
     else if(0==strcmp(argv[2], "train")) train_detector(datacfg, cfg, weights, gpus, ngpus, clear);
     else if(0==strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
     else if(0==strcmp(argv[2], "valid2")) validate_detector_flip(datacfg, cfg, weights, outfile);

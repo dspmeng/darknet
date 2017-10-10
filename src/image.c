@@ -235,21 +235,23 @@ bool draw_detections(image im, int num, float thresh, box *boxes, float **probs,
     return has_obj;
 }
 
-#define MOSAIC_BLK 16
-
 /**
  * @brief draw mosaic on specified class of detections
- * @param mosaic
+ * @param target
  *    The class to be mosaiced
+ * @param mosaic
+ *    Mosaic block size. If mosaic <= 0, just black out
  */
-void draw_mosaic(image im, int num, float thresh, box *boxes, float **probs, int classes, int mosaic)
+bool draw_mosaic(image im, int num, float thresh, box *boxes, float **probs, int classes, int target, int mosaic)
 {
     int i, c, w, h;
+    bool has_obj = false;
 
     for(i = 0; i < num; ++i){
         int class = max_index(probs[i], classes);
         float prob = probs[i][class];
-        if(class == mosaic && prob > thresh){
+        if(class == target && prob > thresh){
+            has_obj = true;
             box b = boxes[i];
 
             int left  = (b.x-b.w/2.)*im.w;
@@ -259,43 +261,46 @@ void draw_mosaic(image im, int num, float thresh, box *boxes, float **probs, int
 
             if(left < 0) left = 0;
             if(top < 0) top = 0;
-#ifdef MOSAIC_BLK
-            if(right > im.w-MOSAIC_BLK) right = im.w-MOSAIC_BLK;
-            if(bot > im.h-MOSAIC_BLK) bot = im.h-MOSAIC_BLK;
-#else
-            if(right > im.w-1) right = im.w-1;
-            if(bot > im.h-1) bot = im.h-1;
-#endif
+            printf("obj #%d, prob %f, (%d,%d)\n", i, prob, left, top);
+            if (mosaic > 0) {
+                if(right > im.w-mosaic) right = im.w-mosaic;
+                if(bot > im.h-mosaic) bot = im.h-mosaic;
+            } else {
+                if(right > im.w-1) right = im.w-1;
+                if(bot > im.h-1) bot = im.h-1;
+            }
 
             for (c = 0; c < im.c; c++) {
-#ifdef MOSAIC_BLK
-                float* data = im.data + c * im.h * im.w;
-                for (int blk_y = top; blk_y < bot; blk_y += MOSAIC_BLK) {
-                    for (int blk_x = left; blk_x < right; blk_x += MOSAIC_BLK) {
-                        float mean = .0;
-                        for (int y = blk_y; y < blk_y + MOSAIC_BLK; y++) {
-                            for (int x = blk_x; x < blk_x + MOSAIC_BLK; x++) {
-                                mean += data[y * im.w + x];
+                if (mosaic > 0) {
+                    float* data = im.data + c * im.h * im.w;
+                    for (int blk_y = top; blk_y < bot; blk_y += mosaic) {
+                        for (int blk_x = left; blk_x < right; blk_x += mosaic) {
+                            float mean = .0;
+                            for (int y = blk_y; y < blk_y + mosaic; y++) {
+                                for (int x = blk_x; x < blk_x + mosaic; x++) {
+                                    mean += data[y * im.w + x];
+                                }
                             }
-                        }
-                        mean /= (MOSAIC_BLK * MOSAIC_BLK);
-                        for (int y = blk_y; y < blk_y + MOSAIC_BLK; y++) {
-                            for (int x = blk_x; x < blk_x + MOSAIC_BLK; x++) {
-                                data[y * im.w + x] = mean;
+                            mean /= (mosaic * mosaic);
+                            for (int y = blk_y; y < blk_y + mosaic; y++) {
+                                for (int x = blk_x; x < blk_x + mosaic; x++) {
+                                    data[y * im.w + x] = mean;
+                                }
                             }
                         }
                     }
+                } else {
+                    for (h = top; h <= bot; h++) {
+                        float* data = im.data + c * im.h * im.w + h * im.w;
+                        for (w = left; w <= right; w++)
+                            data[w] = 0;
+                    }
                 }
-#else
-                for (h = top; h <= bot; h++) {
-                    float* data = im.data + c * im.h * im.w + h * im.w;
-                    for (w = left; w <= right; w++)
-                        data[w] = 0.5;
-                }
-#endif
             }
         }
     }
+
+    return has_obj;
 }
 
 void transpose_image(image im)
