@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import os
 import cPickle
 import numpy as np
+import cv2
 
 class darknet_label_parser():
     def __init__(self, classes):
@@ -27,12 +28,17 @@ class darknet_label_parser():
 
             # retrieve img w/h from annotation file under annotations/
             annot_file = label_file.replace('labels', 'annotations')
-            with open(annot_file) as f:
-                annot = f.readline().strip().split(',')
-            if annot:
-                img_width, img_height = annot[-2:]
+            if os.path.isfile(annot_file):
+                with open(annot_file) as f:
+                    annot = f.readline().strip().split(',')
+                if annot:
+                    img_width, img_height = annot[-2:]
+                else:
+                    raise ValueError('{} not found'.format(annot_file))
             else:
-                raise ValueError('{} not found'.format(annot_file))
+                im = cv2.imread(labelpath.replace('labels', 'test').format(imagename, 'jpg'))
+                img_width = im.shape[1]
+                img_height = im.shape[0]
 
             objects = []
             for obj in labels:
