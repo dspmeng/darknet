@@ -301,6 +301,7 @@ void validate_yolo_recall(char *cfgfile, char *weightfile)
     }
 }
 
+#ifdef OPENCV
 void infer_video_yolo(network net, const char* input, float thresh, char *filename, char* results)
 {
     image **alphabet = load_alphabet();
@@ -355,6 +356,7 @@ void infer_video_yolo(network net, const char* input, float thresh, char *filena
     free(boxes);
     free_ptrs((void **)probs, l.side*l.side*l.n);
 }
+#endif
 
 void infer_image_yolo(network net, const char* input, float thresh, char *filename, char* results)
 {

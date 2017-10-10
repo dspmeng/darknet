@@ -273,17 +273,19 @@ bool draw_mosaic(image im, int num, float thresh, box *boxes, float **probs, int
             for (c = 0; c < im.c; c++) {
                 if (mosaic > 0) {
                     float* data = im.data + c * im.h * im.w;
-                    for (int blk_y = top; blk_y < bot; blk_y += mosaic) {
-                        for (int blk_x = left; blk_x < right; blk_x += mosaic) {
+                    int blk_y, blk_x;
+                    for (blk_y = top; blk_y < bot; blk_y += mosaic) {
+                        for (blk_x = left; blk_x < right; blk_x += mosaic) {
+                            int y, x;
                             float mean = .0;
-                            for (int y = blk_y; y < blk_y + mosaic; y++) {
-                                for (int x = blk_x; x < blk_x + mosaic; x++) {
+                            for (y = blk_y; y < blk_y + mosaic; y++) {
+                                for (x = blk_x; x < blk_x + mosaic; x++) {
                                     mean += data[y * im.w + x];
                                 }
                             }
                             mean /= (mosaic * mosaic);
-                            for (int y = blk_y; y < blk_y + mosaic; y++) {
-                                for (int x = blk_x; x < blk_x + mosaic; x++) {
+                            for (y = blk_y; y < blk_y + mosaic; y++) {
+                                for (x = blk_x; x < blk_x + mosaic; x++) {
                                     data[y * im.w + x] = mean;
                                 }
                             }
