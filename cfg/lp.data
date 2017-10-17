@@ -1,0 +1,6 @@
+classes= 1
+train  = /home/jiameng/hackspace/wintone/train.txt
+valid  = /home/jiameng/hackspace/wintone/test.txt
+names = /home/jiameng/hackspace/yolo/weights/lp2/class_name.txt
+backup = backup_lp
+
