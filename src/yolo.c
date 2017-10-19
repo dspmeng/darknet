@@ -23,6 +23,13 @@ char *barrier_names[] = {
     "other"
 };
 
+char* detrac_names[] = {
+    "car",
+    "van",
+    "bus",
+    "others"
+};
+
 void train_yolo(char *cfgfile, char *weightfile, char *backup)
 {
     char *train_images = "../pascal_voc/train.txt";
@@ -355,6 +362,7 @@ void infer_video_yolo(network net, const char* input, float thresh, char *filena
     if (capture) cvReleaseCapture(&capture);
     free(boxes);
     free_ptrs((void **)probs, l.side*l.side*l.n);
+    free_alphabet(alphabet);
 }
 #endif
 
@@ -367,13 +375,13 @@ void infer_image_yolo(network net, const char* input, float thresh, char *filena
     image im = load_image(input,0,0,net.c);
     image sized = resize_image(im, net.w, net.h);
     float *X = sized.data;
-    time=clock();
     box *boxes = calloc(l.side*l.side*l.n, sizeof(box));
     float **probs = calloc(l.side*l.side*l.n, sizeof(float *));
     char save_as[1024];
     int j;
     for(j = 0; j < l.side*l.side*l.n; ++j) probs[j] = calloc(l.classes, sizeof(float *));
 
+    time=clock();
     network_predict(net, X);
     printf("%s: Predicted with threshold %f in %f seconds.\n", input, thresh, sec(clock()-time));
 //#define DUMP_DETECTION_LAYER
@@ -420,7 +428,7 @@ void infer_image_yolo(network net, const char* input, float thresh, char *filena
     if (nms) do_nms_sort(boxes, probs, l.side*l.side*l.n, l.classes, nms);
     //draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, 20);
     printf("detection_thresh: %f, nms_thresh: %f\n", thresh, nms);
-    draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, voc_names, alphabet, l.classes);
+    draw_detections(im, l.side*l.side*l.n, thresh, boxes, probs, /*detrac_names*/barrier_names/*voc_names*/, alphabet, l.classes);
     if (results) {
         strncpy(save_as, results, strlen(results));
         save_as[strlen(results)] = '\0';
@@ -440,6 +448,7 @@ void infer_image_yolo(network net, const char* input, float thresh, char *filena
     free_image(sized);
     free(boxes);
     free_ptrs((void **)probs, l.side*l.side*l.n);
+    free_alphabet(alphabet);
 }
 
 void test_yolo(char *cfgfile, char *weightfile, char *filename, char *results, float thresh)

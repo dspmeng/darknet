@@ -157,7 +157,7 @@ image **load_alphabet()
 {
     int i, j;
     const int nsize = 8;
-    image **alphabets = calloc(nsize, sizeof(image));
+    image **alphabets = calloc(nsize, sizeof(image*));
     for(j = 0; j < nsize; ++j){
         alphabets[j] = calloc(128, sizeof(image));
         for(i = 32; i < 127; ++i){
@@ -167,6 +167,18 @@ image **load_alphabet()
         }
     }
     return alphabets;
+}
+
+void free_alphabet(image** alphabets)
+{
+    int i, j;
+    const int nsize = 8;
+    for (j = 0; j < nsize; ++j) {
+        for (i = 32; i < 127; ++i)
+            free_image(alphabets[j][i]);
+        free(alphabets[j]);
+    }
+    free(alphabets);
 }
 
 bool draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
@@ -180,6 +192,7 @@ bool draw_detections(image im, int num, float thresh, box *boxes, float **probs,
         if(prob > thresh){
             has_obj = true;
             int width = im.h * .004;
+            width = width > 1? width: 1;
 
             if(0){
                 width = pow(prob, 1./2.)*10+1;
@@ -564,7 +577,12 @@ image ipl_to_image(IplImage* src)
     for(k= 0; k < c; ++k){
         for(i = 0; i < h; ++i){
             for(j = 0; j < w; ++j){
+#if 1
                 out.data[count++] = data[i*step + j*c + k]/255.;
+#else
+                unsigned char value = data[i*step + j*c + k];
+                out.data[count++] = ((value > 24)? value: 24) / 255.;
+#endif
             }
         }
     }

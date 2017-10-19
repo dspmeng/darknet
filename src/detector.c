@@ -626,6 +626,7 @@ void infer_image(network net, const char* input, char** names, float thresh, flo
     free_image(sized);
     free(boxes);
     free_ptrs((void **)probs, l.w*l.h*l.n);
+    free_alphabet(alphabet);
 }
 
 #ifdef OPENCV
@@ -688,6 +689,7 @@ void infer_video(network net, const char* input, char** names, float thresh, flo
     if (capture) cvReleaseCapture(&capture);
     free(boxes);
     free_ptrs((void **)probs, l.w*l.h*l.n);
+    free_alphabet(alphabet);
 }
 #endif
 
